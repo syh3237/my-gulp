@@ -4,17 +4,15 @@ category: 예제
 ---
 <!DOCTYPE html>
 <html lang="ko">
-@@include('../include/head.html', {
-  "title": "예제 페이지 1"
-})
+<%- include('../include/head', { title: title }) %>
 <body>
-  @@include('../include/header.html')
+  <%- include('../include/header') %>
   
   <main>
-    <h1>예제 페이지 1</h1>
+    <h1><%= title %></h1>
     <p>이것은 예제 페이지입니다.</p>
   </main>
   
-  @@include('../include/footer.html')
+  <%- include('../include/footer') %>
 </body>
 </html>

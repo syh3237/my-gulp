@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<%- include('include/head', { title: '메인 페이지' }) %>
+<body>
+  <%- include('include/header') %>
+  
+  <main>
+    <h1>페이지 목록</h1>
+    <% Object.keys(categories).sort().forEach(function(category) { %>
+    <h2><%= category %></h2>
+    <ul>
+      <% categories[category].forEach(function(page) { %>
+      <li><a href="pages/<%= page.path %>"><%= page.title %></a></li>
+      <% }); %>
+    </ul>
+    <% }); %>
+  </main>
+  
+  <%- include('include/footer') %>
+</body>
+</html>

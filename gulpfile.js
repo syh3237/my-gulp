@@ -1,5 +1,5 @@
 const gulp = require('gulp');
-const fileInclude = require('gulp-file-include');
+const ejs = require('gulp-ejs');
 const sass = require('gulp-sass')(require('sass'));
 const autoprefixer = require('gulp-autoprefixer');
 const cleanCSS = require('gulp-clean-css');
@@ -7,7 +7,7 @@ const uglify = require('gulp-uglify');
 const rename = require('gulp-rename');
 const browserSync = require('browser-sync').create();
 const frontMatter = require('gulp-front-matter');
-const through2 = require('through2');
+const gulpData = require('gulp-data');
 const mergeStream = require('merge-stream');
 const fs = require('fs');
 const path = require('path');
@@ -28,13 +28,13 @@ function collectPages() {
       if (stat.isDirectory()) {
         // 하위 카테고리 스캔
         scanDirectory(fullPath, item);
-      } else if (item.endsWith('.html')) {
+      } else if (item.endsWith('.ejs')) {
         const content = fs.readFileSync(fullPath, 'utf8');
         const relativePath = path.relative(pagesDir, fullPath);
-        const filePath = relativePath.replace(/\\/g, '/');
+        const filePath = relativePath.replace(/\\/g, '/').replace(/\.ejs$/, '.html');
         
         // 페이지 제목 추출 (front matter 또는 주석에서)
-        let title = path.basename(item, '.html');
+        let title = path.basename(item, '.ejs');
         let pageCategory = category;
         
         // Front matter에서 제목 추출
@@ -60,7 +60,7 @@ function collectPages() {
         categories[pageCategory].push({
           title: title,
           path: filePath,
-          filename: item
+          filename: item.replace(/\.ejs$/, '.html')
         });
       }
     });
@@ -73,53 +73,25 @@ function collectPages() {
   return categories;
 }
 
-// HTML 처리 (페이지 리스팅 포함)
+// HTML 처리 (EJS 템플릿 컴파일)
 function html() {
   const categories = collectPages();
   
-  // index.html 처리
-  const indexStream = gulp.src('src/views/index.html')
-    .pipe(through2.obj(function(file, enc, cb) {
-      let content = file.contents.toString();
-      
-      // 페이지 리스팅 HTML 생성
-      let listingHTML = '';
-      Object.keys(categories).sort().forEach(category => {
-        listingHTML += `    <h2>${category}</h2>\n    <ul>\n`;
-        categories[category].forEach(page => {
-          const pageUrl = `pages/${page.path}`;
-          listingHTML += `      <li><a href="${pageUrl}">${page.title}</a></li>\n`;
-        });
-        listingHTML += `    </ul>\n`;
-      });
-      
-      // <!-- PAGE_LISTING --> 주석을 찾아서 교체
-      content = content.replace(/<!--\s*PAGE_LISTING\s*-->/, listingHTML);
-      file.contents = Buffer.from(content);
-      
-      this.push(file);
-      cb();
-    }))
-    .pipe(frontMatter({
-      property: 'data',
-      remove: true
-    }))
-    .pipe(fileInclude({
-      prefix: '@@',
-      basepath: '@file'
-    }))
+  // index.ejs 처리
+  const indexStream = gulp.src('src/views/index.ejs')
+    .pipe(gulpData(() => ({ categories })))
+    .pipe(ejs())
+    .pipe(rename({ extname: '.html' }))
     .pipe(gulp.dest('dist'));
   
-  // pages 폴더의 HTML 파일들 처리
-  const pagesStream = gulp.src('src/views/pages/**/*.html')
+  // pages 폴더의 EJS 파일들 처리
+  const pagesStream = gulp.src('src/views/pages/**/*.ejs')
     .pipe(frontMatter({
       property: 'data',
       remove: true
     }))
-    .pipe(fileInclude({
-      prefix: '@@',
-      basepath: '@file'
-    }))
+    .pipe(ejs())
+    .pipe(rename({ extname: '.html' }))
     .pipe(gulp.dest('dist/pages'));
   
   return mergeStream(indexStream, pagesStream)
@@ -169,7 +141,7 @@ function serve() {
     port: 3000
   });
   
-  gulp.watch('src/views/**/*.html', html);
+  gulp.watch('src/views/**/*.ejs', html);
   gulp.watch('src/css/scss/**/*.scss', styles);
   gulp.watch('src/js/**/*.js', scripts);
   gulp.watch('src/assets/**/*', assets);
